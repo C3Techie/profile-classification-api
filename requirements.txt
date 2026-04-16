@@ -1,0 +1,9 @@
+fastapi
+uvicorn
+httpx
+sqlalchemy>=2.0
+asyncpg
+aiosqlite
+pydantic>=2.0
+pydantic-settings
+python-dotenv
