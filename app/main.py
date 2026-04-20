@@ -91,12 +91,3 @@ app.include_router(api_router, prefix=settings.API_V1_STR)
 @app.get("/")
 async def root():
     return {"status": "success", "message": f"{settings.PROJECT_NAME} is active"}
-
-@app.get("/init-db")
-async def init_db():
-    try:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        return {"status": "success", "message": "Database tables initialized"}
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
