@@ -14,10 +14,9 @@ from app.services.classification import ExternalAPIError
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Initialize DB tables (skip if testing)
-    if not os.getenv("TESTING"):
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
+    # Skip DB initialization on startup in Serverless environments (Vercel)
+    # The database is already created and seeded via seed.py.
+    # Connecting to DB during cold start can cause FUNCTION_INVOCATION_FAILED.
     yield
     # Shutdown logic if needed
 

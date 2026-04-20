@@ -11,10 +11,7 @@ engine_kwargs = {"pool_pre_ping": True}
 # are fresh and not killed by the remote pooler.
 if settings.DATABASE_URL.startswith("postgresql+asyncpg"):
     engine_kwargs.update({
-        "pool_size": 5,
-        "max_overflow": 0,
-        "pool_recycle": 10,
-        "pool_pre_ping": True,
+        "poolclass": NullPool,
         "connect_args": {
             "ssl": "require",
             "statement_cache_size": 0,
