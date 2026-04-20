@@ -1,79 +1,98 @@
-# Profile Classification API
+# Profile Classification API - Stage 2: Intelligence Query Engine
 
-A professional, industry-standard FastAPI-based system that classifies profiles by integrating with external APIs (Genderize, Agify, and Nationalize), stores data in a database, and provides management endpoints.
+A professional, industry-standard FastAPI-based system upgraded for advanced demographic intelligence. It features complex filtering, sorting, pagination, and a rule-based natural language search engine.
 
 ## Features
-- **Profile Classification**: Automatically determines gender, age, and nationality using external data.
-- **Industry Standard Layout**: Modular structure with separated concerns (API, Core, DB, Models, Schemas, Services).
-- **Data Persistence**: Configured for PostgreSQL (Vercel/Production) with SQLite support for local development.
-- **Idempotency**: Prevents duplicate records for the same name, returning existing data instead.
-- **UUID v7**: Uses the latest UUID standard for all record identifiers.
-- **Vercel Optimized**: Pre-configured for seamless deployment to Vercel Serverless Functions.
+- **Advanced Filtering**: Slice data by gender, age ranges, age groups, country, and probability thresholds.
+- **Sorting & Pagination**: Full support for paginated results with configurable limits and sorting by various metrics.
+- **Intelligence Query Engine (NLQ)**: A rule-based parser that interprets English sentences like "young males from Nigeria" and maps them to database filters.
+- **Data Seeding**: Automated ingestion of 2026 profiles from JSON data with idempotency checks.
+- **UUID v7**: Uses the latest UUID standard for high-performance indexing and uniqueness.
+- **Vercel Optimized**: Ready for deployment to Vercel Serverless Functions.
 
-## Directory Structure
-```text
-profile-classification-api/
-├── app/
-│   ├── api/                # API Routers (v1)
-│   ├── core/               # Configuration and Utilities
-│   ├── db/                 # Database Session and Base
-│   ├── models/             # SQLAlchemy Models
-│   ├── schemas/            # Pydantic Schemas
-│   ├── services/           # External API Logic
-│   └── main.py             # Application Entry Point
-├── tests/                  # Automated Test Suite
-├── requirements.txt        # Dependency List
-├── vercel.json           # Vercel Configuration
-└── README.md
-```
+## Intelligence Query Engine (NLQ)
+
+The `GET /api/profiles/search` endpoint implements a logic-driven parser for plain English queries.
+
+### How the Parser Works
+The parser uses a rule-based regex engine to translate human intentions into database filters:
+
+1. **Gender Extraction** (word-boundary safe):
+   - `male` or `males` → `gender=male`
+   - `female` or `females` → `gender=female`
+   - Both present (e.g., `male and female`) → no gender filter applied
+
+2. **Age Range Mapping**:
+   - `young` → `min_age=16, max_age=24`
+   - `above X` / `over X` / `older than X` → `min_age=X`
+   - `below X` / `under X` / `younger than X` → `max_age=X`
+
+3. **Age Group Matching** (word-boundary safe):
+   - `child` or `children` → `age_group=child`
+   - `teenager` or `teenagers` → `age_group=teenager`
+   - `adult` or `adults` → `age_group=adult`
+   - `senior` or `seniors` → `age_group=senior`
+
+4. **Geographic Intent**:
+   - `from [country name]` → maps to ISO 3166-1 alpha-2 code
+   - Country names are matched longest-first to avoid partial matches (e.g., `south africa` before `africa`)
+   - Supports 80+ country names including common aliases (e.g., `uk`, `usa`, `ivory coast`)
+
+### Supported Query Examples
+| Query | Resulting Filters |
+|---|---|
+| `young males` | `gender=male, min_age=16, max_age=24` |
+| `females above 30` | `gender=female, min_age=30` |
+| `people from angola` | `country_id=AO` |
+| `adult males from kenya` | `gender=male, age_group=adult, country_id=KE` |
+| `male and female teenagers above 17` | `age_group=teenager, min_age=17` |
+| `seniors from germany` | `age_group=senior, country_id=DE` |
+| `young females from south africa` | `gender=female, min_age=16, max_age=24, country_id=ZA` |
+
+### Limitations
+- **Stateless**: No context memory between requests.
+- **Keyword-dependent**: Only recognizes exact listed keywords. Novel synonyms like "grown-up" won't be mapped.
+- **Single country**: Only the first matched country is used; multi-country queries are not supported.
+- **No boolean OR logic**: Queries like "males from Nigeria or Kenya" are not supported.
+- **No negation**: Queries like "males not from Nigeria" are not supported.
+- **No name search**: The parser operates on demographic filters only, not profile names.
 
 ## API Endpoints
 
 ### 1. Create Profile
 `POST /api/profiles`
 - **Body**: `{ "name": "ella" }`
-- **Description**: Classifies a name and returns the profile. If name exists, returns the existing record.
+- **Description**: Classifies a name and returns the profile.
 
-### 2. Get Single Profile
-`GET /api/profiles/{id}`
-- **Description**: Returns detailed data for a specific profile ID.
+### 2. Search Profiles (NLQ)
+`GET /api/profiles/search?q=young males from Nigeria`
+- **Description**: Returns profiles matching the interpreted natural language intent.
 
-### 3. Get All Profiles
+### 3. List Profiles (Advanced)
 `GET /api/profiles`
-- **Query Params**: `gender`, `country_id`, `age_group` (all optional and case-insensitive).
-- **Description**: Returns a list of profiles with filtering options.
+- **Params**: `gender`, `country_id`, `age_group`, `min_age`, `max_age`, `sort_by`, `order`, `page`, `limit`.
+- **Description**: Full filtering and pagination support.
 
-### 4. Delete Profile
-`DELETE /api/profiles/{id}`
-- **Description**: Removes a profile record.
+## Installation & Setup
 
-## Setup & Local Development
-
-### Prerequisites
-- Python 3.12+
-
-### Installation
-1. Clone the repository.
-2. Install dependencies:
+1. Install dependencies:
    ```bash
    pip install -r requirements.txt
    ```
-3. Run the application:
+2. Initialize and Seed Database:
+   ```bash
+   # Seeds 2026 profiles from seed_profiles.json
+   set PYTHONPATH=. && python app/db/seed.py
+   ```
+3. Run Server:
    ```bash
    uvicorn app.main:app --reload
    ```
 
-### Running Tests
-To run the automated test suite:
+## Running Tests
 ```bash
-# Windows
-$env:PYTHONPATH="."; pytest -v tests/test_profiles.py
-
-# Linux / MacOS
-PYTHONPATH=. pytest -v tests/test_profiles.py
+set PYTHONPATH=. && pytest tests/test_profiles.py
 ```
 
 ## Deployment (Vercel)
-1. Link your repository to a new Vercel project.
-2. Add your **PostgreSQL** connection string as `DATABASE_URL` in the environment variables.
-3. Deploy! The `vercel.json` and entry points are already configured.
+The project is pre-configured with `vercel.json`. Simply connect your GitHub repository and set `DATABASE_URL` in your environment variables.

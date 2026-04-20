@@ -53,9 +53,37 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    
+    # Check if it's a 'field required' error (Missing parameter)
+    # Pydantic v2 returns 'string_too_short' for min_length violations (empty strings)
+    is_missing = any(
+        err.get("type") == "missing" or 
+        "missing" in err.get("type", "") or 
+        err.get("type") == "string_too_short" 
+        for err in errors
+    )
+    if is_missing:
+        return JSONResponse(
+            status_code=400,
+            content={"status": "error", "message": "Missing or empty parameter"}
+        )
+
+    # Check if the error is in the query parameters
+    is_query_error = any(err.get("loc", [])[0] == "query" for err in errors)
+    message = "Invalid query parameters" if is_query_error else "Invalid parameter type"
+    
     return JSONResponse(
         status_code=422,
-        content={"status": "error", "message": "Invalid type"}
+        content={"status": "error", "message": message}
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    # Log the real exception internally here if needed
+    return JSONResponse(
+        status_code=500,
+        content={"status": "error", "message": "Server failure"}
     )
 
 # Include Routers

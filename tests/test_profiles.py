@@ -14,10 +14,10 @@ def mock_external_apis():
         mock.return_value = {
             "gender": "female",
             "gender_probability": 0.99,
-            "sample_size": 1234,
             "age": 30,
             "age_group": "adult",
             "country_id": "US",
+            "country_name": "United States",
             "country_probability": 0.85
         }
         yield mock
@@ -41,6 +41,7 @@ async def test_create_profile():
         assert data["status"] == "success"
         assert data["data"]["name"] == "ella"
         assert "id" in data["data"]
+        assert data["data"]["country_name"] == "United States"
         
         # Test idempotency (same name)
         response2 = await ac.post("/api/profiles", json={"name": "ella"})
@@ -50,15 +51,37 @@ async def test_create_profile():
         assert data2["data"]["id"] == data["data"]["id"]
 
 @pytest.mark.asyncio
-async def test_get_profiles():
+async def test_get_profiles_pagination():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        # Create one first
+        # Create a few
         await ac.post("/api/profiles", json={"name": "ella"})
+        await ac.post("/api/profiles", json={"name": "john"})
         
-        response = await ac.get("/api/profiles")
+        response = await ac.get("/api/profiles?page=1&limit=1")
         assert response.status_code == 200
         data = response.json()
-        assert data["count"] >= 1
+        assert data["page"] == 1
+        assert data["limit"] == 1
+        assert data["total"] == 2
+        assert len(data["data"]) == 1
+
+@pytest.mark.asyncio
+async def test_nlq_search():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # Create sample
+        await ac.post("/api/profiles", json={"name": "ella"})
+        
+        # Test search
+        response = await ac.get("/api/profiles/search?q=females from united states")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["total"] >= 1
+        assert data["data"][0]["gender"] == "female"
+        
+        # Test invalid search
+        response2 = await ac.get("/api/profiles/search?q=unknown query")
+        assert response2.status_code == 400
+        assert response2.json()["status"] == "error"
 
 @pytest.mark.asyncio
 async def test_get_single_profile():

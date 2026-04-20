@@ -9,7 +9,11 @@ class Settings(BaseSettings):
     VERSION: str = "1.0.0"
     API_V1_STR: str = "/api"
     
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./profiles.db")
+    @property
+    def DATABASE_URL(self) -> str:
+        if os.getenv("TESTING") == "True":
+            return "sqlite+aiosqlite:///./test_profiles.db"
+        return os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./profiles.db")
     
     # External API Base URLs
     GENDERIZE_URL: str = "https://api.genderize.io"

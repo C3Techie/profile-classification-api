@@ -7,6 +7,45 @@ class ExternalAPIError(Exception):
     def __init__(self, api_name: str):
         self.api_name = api_name
 
+# Reverse map for country names
+COUNTRY_CODE_MAP = {
+    "NG": "Nigeria",
+    "BJ": "Benin",
+    "KE": "Kenya",
+    "AO": "Angola",
+    "TZ": "Tanzania",
+    "UG": "Uganda",
+    "SD": "Sudan",
+    "MG": "Madagascar",
+    "GB": "United Kingdom",
+    "US": "United States",
+    "IN": "India",
+    "CM": "Cameroon",
+    "CV": "Cape Verde",
+    "CG": "Republic of the Congo",
+    "MZ": "Mozambique",
+    "ZA": "South Africa",
+    "ML": "Mali",
+    "CD": "DR Congo",
+    "FR": "France",
+    "ER": "Eritrea",
+    "ZM": "Zambia",
+    "GM": "Gambia",
+    "CI": "Côte d'Ivoire",
+    "ET": "Ethiopia",
+    "MA": "Morocco",
+    "MW": "Malawi",
+    "BR": "Brazil",
+    "TN": "Tunisia",
+    "SO": "Somalia",
+    "GA": "Gabon",
+    "NA": "Namibia",
+    "SN": "Senegal",
+}
+
+def get_country_name(code: str) -> str:
+    return COUNTRY_CODE_MAP.get(code.upper(), code.upper())
+
 def get_age_group(age: int) -> str:
     if age <= 12: return "child"
     if age <= 19: return "teenager"
@@ -52,13 +91,14 @@ async def fetch_classification_data(name: str) -> Dict[str, Any]:
             
         # Pick top country
         top_country = max(countries, key=lambda x: x["probability"])
+        country_code = top_country["country_id"]
         
         return {
             "gender": g_data["gender"],
             "gender_probability": g_data["probability"],
-            "sample_size": g_data["count"],
             "age": a_data["age"],
             "age_group": get_age_group(a_data["age"]),
-            "country_id": top_country["country_id"],
+            "country_id": country_code,
+            "country_name": get_country_name(country_code),
             "country_probability": top_country["probability"]
         }

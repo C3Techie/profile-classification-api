@@ -1,16 +1,17 @@
-from sqlalchemy import String, Float, Integer, Column
+from sqlalchemy import String, Float, Integer, Column, DateTime
 from app.db.base import Base
+from datetime import datetime, timezone
 
 class Profile(Base):
     __tablename__ = "profiles"
 
-    id = Column(String, primary_key=True, index=True)
+    id = Column(String, primary_key=True, index=True) # UUID v7
     name = Column(String, unique=True, index=True, nullable=False)
-    gender = Column(String, nullable=False)
+    gender = Column(String, nullable=False, index=True)
     gender_probability = Column(Float, nullable=False)
-    sample_size = Column(Integer, nullable=False)
-    age = Column(Integer, nullable=False)
-    age_group = Column(String, nullable=False)
-    country_id = Column(String, nullable=False)
+    age = Column(Integer, nullable=False, index=True)
+    age_group = Column(String, nullable=False, index=True)
+    country_id = Column(String(2), nullable=False, index=True)
+    country_name = Column(String, nullable=False)
     country_probability = Column(Float, nullable=False)
-    created_at = Column(String, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
