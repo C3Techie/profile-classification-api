@@ -13,7 +13,12 @@ class Settings(BaseSettings):
     def DATABASE_URL(self) -> str:
         if os.getenv("TESTING") == "True":
             return "sqlite+aiosqlite:///./test_profiles.db"
-        return os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./profiles.db")
+        
+        url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./profiles.db")
+        # Ensure we use the asyncpg driver, even if the user pasted a standard postgresql URL
+        if url.startswith("postgresql://"):
+            url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return url
     
     # External API Base URLs
     GENDERIZE_URL: str = "https://api.genderize.io"
