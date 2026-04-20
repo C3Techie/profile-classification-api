@@ -14,8 +14,14 @@ class Settings(BaseSettings):
         if os.getenv("TESTING") == "True":
             return "sqlite+aiosqlite:///./test_profiles.db"
         
-        url = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./profiles.db")
-        # Ensure we use the asyncpg driver, even if the user pasted a standard postgresql URL
+        url = os.getenv("DATABASE_URL", "")
+        if not url:
+            url = "sqlite+aiosqlite:///./profiles.db"
+            
+        # Sanitize common Vercel pasting errors (spaces or quotes)
+        url = url.strip().strip('"').strip("'")
+            
+        # Ensure we use the asyncpg driver
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         return url
