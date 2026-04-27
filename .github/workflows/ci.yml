@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [feat/stage-3-secure-access]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: testdb
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: sqlite+aiosqlite:///./test_profiles.db
+      TESTING: "True"
+      GITHUB_CLIENT_ID: dummy
+      GITHUB_CLIENT_SECRET: dummy
+      JWT_SECRET_KEY: ci_test_secret_key_32_bytes_long_xx
+      FRONTEND_URL: http://localhost:3000
+      GITHUB_REDIRECT_URI: http://localhost:8000/auth/github/callback
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('requirements.txt') }}
+          restore-keys: ${{ runner.os }}-pip-
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt flake8 pytest pytest-asyncio httpx
+
+      - name: Lint (flake8)
+        run: |
+          flake8 app/ --max-line-length=120 --exclude=__pycache__ --ignore=E501,W503
+
+      - name: Run tests
+        run: pytest tests/ -v --tb=short
