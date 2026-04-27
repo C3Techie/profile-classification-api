@@ -1,3 +1,7 @@
+# Interfaces (to be moved to separate repos)
+insighta-cli/
+insighta-portal/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.pyc

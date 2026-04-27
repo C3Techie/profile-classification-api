@@ -1,98 +1,113 @@
-# Profile Classification API - Stage 2: Intelligence Query Engine
+# Insighta Labs+ | Profile Intelligence API
 
-A professional, industry-standard FastAPI-based system upgraded for advanced demographic intelligence. It features complex filtering, sorting, pagination, and a rule-based natural language search engine.
+The core backend for Insighta Labs+, a secure, multi-interface platform for identity profile classification and analysis.
 
-## Features
-- **Advanced Filtering**: Slice data by gender, age ranges, age groups, country, and probability thresholds.
-- **Sorting & Pagination**: Full support for paginated results with configurable limits and sorting by various metrics.
-- **Intelligence Query Engine (NLQ)**: A rule-based parser that interprets English sentences like "young males from Nigeria" and maps them to database filters.
-- **Data Seeding**: Automated ingestion of 2026 profiles from JSON data with idempotency checks.
-- **UUID v7**: Uses the latest UUID standard for high-performance indexing and uniqueness.
-- **Vercel Optimized**: Ready for deployment to Vercel Serverless Functions.
+## 🏗 System Architecture
 
-## Intelligence Query Engine (NLQ)
+Insighta Labs+ follows a **3-tier modular architecture** designed for scalability and security:
 
-The `GET /api/profiles/search` endpoint implements a logic-driven parser for plain English queries.
+1.  **Backend (FastAPI)**: The central source of truth. Handles data ingestion, classification (via External APIs), identity management, and RBAC.
+2.  **CLI (TypeScript)**: A power-user interface for automated querying and profile management.
+3.  **Web Portal (Next.js 14)**: A secure, browser-based interface for non-technical analysts.
 
-### How the Parser Works
-The parser uses a rule-based regex engine to translate human intentions into database filters:
-
-1. **Gender Extraction** (word-boundary safe):
-   - `male` or `males` → `gender=male`
-   - `female` or `females` → `gender=female`
-   - Both present (e.g., `male and female`) → no gender filter applied
-
-2. **Age Range Mapping**:
-   - `young` → `min_age=16, max_age=24`
-   - `above X` / `over X` / `older than X` → `min_age=X`
-   - `below X` / `under X` / `younger than X` → `max_age=X`
-
-3. **Age Group Matching** (word-boundary safe):
-   - `child` or `children` → `age_group=child`
-   - `teenager` or `teenagers` → `age_group=teenager`
-   - `adult` or `adults` → `age_group=adult`
-   - `senior` or `seniors` → `age_group=senior`
-
-4. **Geographic Intent**:
-   - `from [country name]` → maps to ISO 3166-1 alpha-2 code
-   - Country names are matched longest-first to avoid partial matches (e.g., `south africa` before `africa`)
-   - Supports 80+ country names including common aliases (e.g., `uk`, `usa`, `ivory coast`)
-
-### Supported Query Examples
-| Query | Resulting Filters |
-|---|---|
-| `young males` | `gender=male, min_age=16, max_age=24` |
-| `females above 30` | `gender=female, min_age=30` |
-| `people from angola` | `country_id=AO` |
-| `adult males from kenya` | `gender=male, age_group=adult, country_id=KE` |
-| `male and female teenagers above 17` | `age_group=teenager, min_age=17` |
-| `seniors from germany` | `age_group=senior, country_id=DE` |
-| `young females from south africa` | `gender=female, min_age=16, max_age=24, country_id=ZA` |
-
-### Limitations
-- **Stateless**: No context memory between requests.
-- **Keyword-dependent**: Only recognizes exact listed keywords. Novel synonyms like "grown-up" won't be mapped.
-- **Single country**: Only the first matched country is used; multi-country queries are not supported.
-- **No boolean OR logic**: Queries like "males from Nigeria or Kenya" are not supported.
-- **No negation**: Queries like "males not from Nigeria" are not supported.
-- **No name search**: The parser operates on demographic filters only, not profile names.
-
-## API Endpoints
-
-### 1. Create Profile
-`POST /api/profiles`
-- **Body**: `{ "name": "ella" }`
-- **Description**: Classifies a name and returns the profile.
-
-### 2. Search Profiles (NLQ)
-`GET /api/profiles/search?q=young males from Nigeria`
-- **Description**: Returns profiles matching the interpreted natural language intent.
-
-### 3. List Profiles (Advanced)
-`GET /api/profiles`
-- **Params**: `gender`, `country_id`, `age_group`, `min_age`, `max_age`, `sort_by`, `order`, `page`, `limit`.
-- **Description**: Full filtering and pagination support.
-
-## Installation & Setup
-
-1. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-2. Initialize and Seed Database:
-   ```bash
-   # Seeds 2026 profiles from seed_profiles.json
-   set PYTHONPATH=. && python app/db/seed.py
-   ```
-3. Run Server:
-   ```bash
-   uvicorn app.main:app --reload
-   ```
-
-## Running Tests
-```bash
-set PYTHONPATH=. && pytest tests/test_profiles.py
+```mermaid
+graph TD
+    User([User]) --> CLI[Insighta CLI]
+    User --> Portal[Web Portal]
+    CLI --> Auth[OAuth PKCE Flow]
+    Portal --> Auth
+    Auth --> API[Backend API]
+    API --> DB[(Neon PostgreSQL)]
+    API --> Ext[External Classification APIs]
 ```
 
-## Deployment (Vercel)
-The project is pre-configured with `vercel.json`. Simply connect your GitHub repository and set `DATABASE_URL` in your environment variables.
+---
+
+## 🔐 Authentication & PKCE Flow
+
+Insighta Labs+ utilizes **GitHub OAuth with PKCE** (Proof Key for Code Exchange) to ensure secure sessions across both public (CLI) and private (Web) clients.
+
+### CLI Flow (PKCE)
+1.  **Challenge Generation**: CLI generates a random `code_verifier` and a `code_challenge`.
+2.  **Authorization**: CLI opens the browser to `GET /auth/github` with the challenge.
+3.  **Callback**: GitHub redirects to the CLI's local server.
+4.  **Exchange**: CLI sends the `code` and `code_verifier` to `POST /auth/github/callback`.
+5.  **Verification**: Backend verifies the challenge and issues JWTs.
+
+### Web Flow
+1.  **Authorization**: Browser redirects to `GET /auth/github`.
+2.  **Exchange**: Backend handles the callback, sets **HTTP-only, SameSite:Strict cookies**, and redirects to the dashboard.
+
+---
+
+## 🎫 Token Handling Approach
+
+The system enforces strict session security using a **Dual-Token Rotation Strategy**:
+
+| Token | Type | Expiry | Storage |
+| :--- | :--- | :--- | :--- |
+| **Access Token** | JWT | 3 Minutes | Memory / HTTP-only Cookie |
+| **Refresh Token** | Secure Hash | 5 Minutes | Database / HTTP-only Cookie |
+
+### Rotation Logic
+On every refresh (`POST /auth/refresh`):
+1.  The provided refresh token is verified against the database.
+2.  **Immediate Invalidation**: The old refresh token is marked as `revoked`.
+3.  **New Issuance**: A brand new pair of access/refresh tokens is generated and returned/set.
+
+---
+
+## 🛡 Role Enforcement Logic
+
+Access control is centralized via **FastAPI Dependency Injection**, preventing scattered `if/else` checks.
+
+- **Admin**: Full read/write/delete access. Required for `POST /api/profiles` and `DELETE`.
+- **Analyst**: Read-only access. Restricted to querying and searching.
+
+```python
+# app/core/dependencies.py
+async def require_admin(current_user: User = Depends(get_current_user)) -> User:
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return current_user
+```
+
+---
+
+## 🧠 Natural Language Parsing Approach
+
+The Search Engine utilizes a **Rule-Based Deterministic Parser** (`app/core/parser.py`) to interpret plain English intent:
+
+1.  **Normalization**: Queries are lowercased and stripped of noise.
+2.  **Pattern Matching**: Regex-based extraction of:
+    - **Demographics**: "teenagers", "seniors", "young".
+    - **Gender**: "male", "female".
+    - **Geographics**: "from [Country Name]" matching against a 90+ country map.
+3.  **Filter Construction**: Patterns are mapped to SQL query parameters (e.g., `above 30` → `min_age=30`).
+
+---
+
+## 🚀 Installation & Deployment
+
+### Environment Setup
+Create a `.env` file:
+```env
+DATABASE_URL=postgresql+asyncpg://...
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
+GITHUB_REDIRECT_URI=...
+JWT_SECRET_KEY=...
+FRONTEND_URL=...
+```
+
+### Run Locally
+```bash
+# Install dependencies
+pip install -r requirements.txt
+
+# Create tables
+python scripts/create_tables.py
+
+# Start server
+uvicorn app.main:app --reload
+```

@@ -32,6 +32,9 @@ async def _check_rate_limit(key: str, limit: int, window_seconds: int = 60) -> b
             await db.commit()
             return True
 
+        if entry.window_start.tzinfo is None:
+            entry.window_start = entry.window_start.replace(tzinfo=timezone.utc)
+
         if entry.window_start < window_start_threshold:
             # Window has expired — reset
             entry.window_start = now
