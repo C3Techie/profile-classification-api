@@ -7,6 +7,7 @@ from app.db.session import engine
 from app.db.base import Base
 from unittest.mock import patch, AsyncMock
 
+@pytest.mark.asyncio
 @pytest.fixture(scope="function", autouse=True)
 async def setup_db():
     # Clear overrides at the start of each test for isolation

@@ -35,6 +35,7 @@ def mock_external_apis():
         }
         yield mock
 
+@pytest.mark.asyncio
 @pytest.fixture(scope="function", autouse=True)
 async def setup_db():
     async with engine.begin() as conn:
