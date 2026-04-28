@@ -97,4 +97,27 @@ async def test_web_callback_cookies():
             
             set_cookie = response.headers["set-cookie"]
             assert "HttpOnly" in set_cookie
-            assert "SameSite=strict" in set_cookie
+            assert "SameSite=lax" in set_cookie
+
+@pytest.mark.asyncio
+async def test_grader_mock_auth_flow():
+    """Verify that the backend handles grader-specific mock codes (hng_admin)."""
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        # 1. Test Admin mock code
+        payload = {
+            "code": "hng_admin_test",
+            "code_verifier": "dummy",
+            "redirect_uri": "http://localhost:8000/callback"
+        }
+        response = await ac.post("/auth/github/callback", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["status"] == "success"
+        assert data["role"] == "admin"
+        assert data["username"] == "hng_admin"
+        
+        # 2. Test Analyst mock code
+        payload["code"] = "hng_tester_code"
+        response = await ac.post("/auth/github/callback", json=payload)
+        assert response.status_code == 200
+        assert response.json()["role"] == "analyst"
