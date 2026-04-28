@@ -20,10 +20,12 @@ if settings.DATABASE_URL.startswith("postgresql+asyncpg"):
     })
 
 # Use NullPool for testing to avoid connection interference
+database_url = settings.DATABASE_URL
 if os.getenv("TESTING") == "True":
     engine_kwargs["poolclass"] = NullPool
+    database_url = "sqlite+aiosqlite:///./test.db"
 
-engine = create_async_engine(settings.DATABASE_URL, **engine_kwargs)
+engine = create_async_engine(database_url, **engine_kwargs)
 
 AsyncSessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
