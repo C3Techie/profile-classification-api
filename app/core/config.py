@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     # Rate limits
-    AUTH_RATE_LIMIT: int = 10    # requests per minute for /auth/*
-    API_RATE_LIMIT: int = 60     # requests per minute for everything else
+    AUTH_RATE_LIMIT: int = 100    # requests per minute for /auth/*
+    API_RATE_LIMIT: int = 500     # requests per minute for everything else
 
 settings = Settings()

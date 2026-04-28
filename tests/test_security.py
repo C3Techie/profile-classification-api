@@ -10,6 +10,8 @@ from unittest.mock import patch, AsyncMock
 
 @pytest_asyncio.fixture(scope="function", autouse=True)
 async def setup_db():
+    import os
+    os.environ["TESTING"] = "True"
     # Clear overrides at the start of each test for isolation
     app.dependency_overrides.clear()
     async with engine.begin() as conn:
@@ -69,16 +71,24 @@ async def test_rbac_admin_can_create():
 
 @pytest.mark.asyncio
 async def test_rate_limiting_auth():
-    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        # Send 10 requests (the limit)
-        for _ in range(10):
-            await ac.get("/auth/github")
-        
-        # 11th should be rate limited
-        response = await ac.get("/auth/github")
-        assert response.status_code == 429
-        assert response.json()["status"] == "error"
-        assert "Too many requests" in response.json()["message"]
+    # We use a smaller limit for testing to keep it fast, or just mock the limit
+    from app.core.config import settings
+    original_limit = settings.AUTH_RATE_LIMIT
+    settings.AUTH_RATE_LIMIT = 5 # Set a very low limit for the test
+    
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+            # Send 5 requests (the limit)
+            for _ in range(5):
+                await ac.get("/auth/github")
+            
+            # 6th should be rate limited
+            response = await ac.get("/auth/github")
+            assert response.status_code == 429
+            assert response.json()["status"] == "error"
+            assert "Too many requests" in response.json()["message"]
+    finally:
+        settings.AUTH_RATE_LIMIT = original_limit
 
 @pytest.mark.asyncio
 async def test_unauthenticated_access():

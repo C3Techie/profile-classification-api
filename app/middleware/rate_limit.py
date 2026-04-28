@@ -60,7 +60,13 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        client_ip = request.client.host if request.client else "unknown"
+        
+        # On Vercel, the real client IP is in X-Forwarded-For
+        forwarded = request.headers.get("X-Forwarded-For")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+        else:
+            client_ip = request.client.host if request.client else "unknown"
 
         if path.startswith("/auth"):
             limit = settings.AUTH_RATE_LIMIT
@@ -82,6 +88,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return JSONResponse(
                 status_code=429,
                 content={"status": "error", "message": "Too many requests"},
+                headers={"Access-Control-Allow-Origin": "*"}
             )
 
         return await call_next(request)

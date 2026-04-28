@@ -101,6 +101,20 @@ async def test_get_single_profile():
         assert response.json()["data"]["name"] == "ella"
 
 @pytest.mark.asyncio
+async def test_export_csv():
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
+        await ac.post("/api/profiles", json={"name": "ella"}, headers=HEADERS)
+        
+        response = await ac.get("/api/profiles/export?format=csv", headers=HEADERS)
+        assert response.status_code == 200
+        assert "text/csv" in response.headers["content-type"]
+        content = response.text
+        # Check header row
+        header = content.splitlines()[0]
+        expected_header = "id,name,gender,gender_probability,age,age_group,country_id,country_name,country_probability,created_at"
+        assert header == expected_header
+
+@pytest.mark.asyncio
 async def test_delete_profile():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         res = await ac.post("/api/profiles", json={"name": "john"}, headers=HEADERS)
