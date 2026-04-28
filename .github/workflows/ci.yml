@@ -50,4 +50,4 @@ jobs:
 
       - name: Run tests
         run: |
-          pytest
+          pytest -o asyncio_mode=auto

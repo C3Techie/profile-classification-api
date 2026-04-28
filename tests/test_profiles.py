@@ -2,6 +2,7 @@ import os
 os.environ["TESTING"] = "True"
 
 import pytest
+import pytest_asyncio
 from unittest.mock import patch, AsyncMock
 from httpx import ASGITransport, AsyncClient
 from app.main import app
@@ -35,7 +36,7 @@ def mock_external_apis():
         }
         yield mock
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def setup_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from app.main import app
 from app.models.user import User
@@ -7,7 +8,7 @@ from app.db.session import engine
 from app.db.base import Base
 from unittest.mock import patch, AsyncMock
 
-@pytest.fixture(scope="function", autouse=True)
+@pytest_asyncio.fixture(scope="function", autouse=True)
 async def setup_db():
     # Clear overrides at the start of each test for isolation
     app.dependency_overrides.clear()
