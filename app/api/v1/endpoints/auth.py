@@ -174,7 +174,9 @@ async def github_login(
     # ── Web / browser flow ─────────────────────────────────────────────────────
     # Use provided state if available, otherwise generate a signed one
     effective_state = state or create_state_token("web")
-    target_redirect = redirect_uri or settings.GITHUB_REDIRECT_URI
+    # THE FIX: Point to the Portal's callback by default, not the backend's
+    target_redirect = redirect_uri or f"{settings.FRONTEND_URL}/api/auth/callback"
+    
     url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
