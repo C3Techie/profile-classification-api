@@ -87,6 +87,21 @@ The Search Engine utilizes a **Rule-Based Deterministic Parser** (`app/core/pars
 
 ---
 
+## 💻 CLI Usage
+
+The Insighta CLI provides a high-performance interface for engineers.
+
+| Command | Action |
+| :--- | :--- |
+| `insighta login` | Secure GitHub PKCE Authentication |
+| `insighta whoami` | Verify current session and role |
+| `insighta profiles list` | Paginated profile retrieval with filters |
+| `insighta profiles search "query"` | Natural Language Querying |
+| `insighta profiles create --name "X"` | New profile classification (Admin) |
+| `insighta profiles export --format csv` | Local CSV download to current directory |
+
+---
+
 ## 🚀 Installation & Deployment
 
 ### Environment Setup
