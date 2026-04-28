@@ -168,12 +168,13 @@ async def github_login(
 
     # ── Web / browser flow ─────────────────────────────────────────────────────
     signed_state = create_state_token("web")
+    target_redirect = redirect_uri or settings.GITHUB_REDIRECT_URI
     url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={settings.GITHUB_CLIENT_ID}"
         f"&scope=user:email"
         f"&state={signed_state}"
-        f"&redirect_uri={settings.GITHUB_REDIRECT_URI}"
+        f"&redirect_uri={target_redirect}"
     )
     return RedirectResponse(url)
 
