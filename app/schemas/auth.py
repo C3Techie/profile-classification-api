@@ -7,7 +7,7 @@ from typing import Optional
 class CLICallbackBody(BaseModel):
     """Body sent by the CLI after capturing the GitHub callback locally."""
     code: str
-    code_verifier: str
+    code_verifier: Optional[str] = None
     redirect_uri: str
     state: str
 
