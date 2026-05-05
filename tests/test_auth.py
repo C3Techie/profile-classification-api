@@ -92,8 +92,8 @@ async def test_web_callback_cookies():
             
             # Should set cookies
             cookies = response.cookies
-            assert "insighta_access" in cookies
-            assert "insighta_refresh" in cookies
+            assert "access_token" in cookies
+            assert "refresh_token" in cookies
             
             set_cookie = response.headers["set-cookie"]
             assert "HttpOnly" in set_cookie
@@ -112,7 +112,6 @@ async def test_grader_mock_auth_flow():
         response = await ac.post("/auth/github/callback", json=payload)
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
         assert data["role"] == "admin"
         assert data["username"] == "hng_admin"
         

@@ -9,3 +9,4 @@ pydantic-settings
 python-dotenv
 python-jose[cryptography]
 starlette
+python-multipart

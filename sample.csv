@@ -1,0 +1,3 @@
+﻿name,gender,age,country_id,gender_probability,country_probability
+local tester,male,28,NG,1.0,1.0
+another user,female,32,ZA,1.0,1.0

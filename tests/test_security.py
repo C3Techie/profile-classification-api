@@ -33,7 +33,7 @@ HEADERS = {"X-API-Version": "1"}
 async def test_api_version_header_required():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # No header
-        response = await ac.get("/api/profiles")
+        response = await ac.get("/api/v1/profiles")
         assert response.status_code == 400
         # Check standard error format
         assert response.json()["status"] == "error"
@@ -45,7 +45,7 @@ async def test_rbac_analyst_cannot_create():
     app.dependency_overrides[get_current_user] = lambda: MOCK_ANALYST
     
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.post("/api/profiles", json={"name": "test"}, headers=HEADERS)
+        response = await ac.post("/api/v1/profiles", json={"name": "test"}, headers=HEADERS)
         assert response.status_code == 403
         assert "Admin access required" in response.json()["message"]
 
@@ -66,7 +66,7 @@ async def test_rbac_admin_can_create():
                 "country_name": "United States",
                 "country_probability": 0.90
             }
-            response = await ac.post("/api/profiles", json={"name": "admin-test"}, headers=HEADERS)
+            response = await ac.post("/api/v1/profiles", json={"name": "admin-test"}, headers=HEADERS)
             assert response.status_code == 201
 
 @pytest.mark.asyncio
@@ -94,5 +94,5 @@ async def test_rate_limiting_auth():
 async def test_unauthenticated_access():
     # No auth override here, so it should default to 401
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.get("/api/profiles", headers=HEADERS)
+        response = await ac.get("/api/v1/profiles", headers=HEADERS)
         assert response.status_code == 401

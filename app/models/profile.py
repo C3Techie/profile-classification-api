@@ -1,4 +1,4 @@
-from sqlalchemy import String, Float, Integer, Column, DateTime
+from sqlalchemy import String, Float, Integer, Column, DateTime, Index
 from app.db.base import Base
 from datetime import datetime, timezone
 
@@ -15,3 +15,10 @@ class Profile(Base):
     country_name = Column(String, nullable=False)
     country_probability = Column(Float, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # Composite indexes for optimized multi-filter queries
+    __table_args__ = (
+        Index("idx_profiles_country_gender_age", "country_id", "gender", "age_group"),
+        Index("idx_profiles_gender_age", "gender", "age_group"),
+        Index("idx_profiles_country_age", "country_id", "age"),
+    )
