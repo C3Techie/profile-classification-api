@@ -56,7 +56,7 @@ HEADERS = {"X-API-Version": "1"}
 @pytest.mark.asyncio
 async def test_create_profile():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        response = await ac.post("/api/profiles", json={"name": "ella"}, headers=HEADERS)
+        response = await ac.post("/api/v1/profiles", json={"name": "ella"}, headers=HEADERS)
         assert response.status_code == 201
         data = response.json()
         assert data["status"] == "success"
@@ -67,10 +67,10 @@ async def test_create_profile():
 async def test_get_profiles_pagination():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Create a few
-        await ac.post("/api/profiles", json={"name": "ella"}, headers=HEADERS)
-        await ac.post("/api/profiles", json={"name": "john"}, headers=HEADERS)
+        await ac.post("/api/v1/profiles", json={"name": "ella"}, headers=HEADERS)
+        await ac.post("/api/v1/profiles", json={"name": "john"}, headers=HEADERS)
 
-        response = await ac.get("/api/profiles?page=1&limit=1", headers=HEADERS)
+        response = await ac.get("/api/v1/profiles?page=1&limit=1", headers=HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert data["status"] == "success"
@@ -82,9 +82,9 @@ async def test_get_profiles_pagination():
 @pytest.mark.asyncio
 async def test_nlq_search():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        await ac.post("/api/profiles", json={"name": "ella"}, headers=HEADERS)
+        await ac.post("/api/v1/profiles", json={"name": "ella"}, headers=HEADERS)
         
-        response = await ac.get("/api/profiles/search?q=female from US", headers=HEADERS)
+        response = await ac.get("/api/v1/profiles/search?q=female from US", headers=HEADERS)
         assert response.status_code == 200
         data = response.json()
         assert data["total"] >= 1
@@ -93,19 +93,19 @@ async def test_nlq_search():
 @pytest.mark.asyncio
 async def test_get_single_profile():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        res = await ac.post("/api/profiles", json={"name": "ella"}, headers=HEADERS)
+        res = await ac.post("/api/v1/profiles", json={"name": "ella"}, headers=HEADERS)
         pid = res.json()["data"]["id"]
         
-        response = await ac.get(f"/api/profiles/{pid}", headers=HEADERS)
+        response = await ac.get(f"/api/v1/profiles/{pid}", headers=HEADERS)
         assert response.status_code == 200
         assert response.json()["data"]["name"] == "ella"
 
 @pytest.mark.asyncio
 async def test_export_csv():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        await ac.post("/api/profiles", json={"name": "ella"}, headers=HEADERS)
+        await ac.post("/api/v1/profiles", json={"name": "ella"}, headers=HEADERS)
         
-        response = await ac.get("/api/profiles/export?format=csv", headers=HEADERS)
+        response = await ac.get("/api/v1/profiles/export?format=csv", headers=HEADERS)
         assert response.status_code == 200
         assert "text/csv" in response.headers["content-type"]
         content = response.text
@@ -117,23 +117,23 @@ async def test_export_csv():
 @pytest.mark.asyncio
 async def test_delete_profile():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
-        res = await ac.post("/api/profiles", json={"name": "john"}, headers=HEADERS)
+        res = await ac.post("/api/v1/profiles", json={"name": "john"}, headers=HEADERS)
         pid = res.json()["data"]["id"]
         
-        response = await ac.delete(f"/api/profiles/{pid}", headers=HEADERS)
+        response = await ac.delete(f"/api/v1/profiles/{pid}", headers=HEADERS)
         assert response.status_code == 204
         
         # Verify 404
-        response = await ac.get(f"/api/profiles/{pid}", headers=HEADERS)
+        response = await ac.get(f"/api/v1/profiles/{pid}", headers=HEADERS)
         assert response.status_code == 404
 
 @pytest.mark.asyncio
 async def test_export_profiles_csv():
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as ac:
         # Create one to export
-        await ac.post("/api/profiles", json={"name": "csv-user"}, headers=HEADERS)
+        await ac.post("/api/v1/profiles", json={"name": "csv-user"}, headers=HEADERS)
         
-        response = await ac.get("/api/profiles/export?format=csv", headers=HEADERS)
+        response = await ac.get("/api/v1/profiles/export?format=csv", headers=HEADERS)
         assert response.status_code == 200
         assert response.headers["content-type"] == "text/csv; charset=utf-8"
         assert "attachment" in response.headers["content-disposition"]
