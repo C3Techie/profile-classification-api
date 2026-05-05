@@ -3,7 +3,7 @@ import io
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response, status, File, UploadFile
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -20,9 +20,11 @@ from app.schemas.profile import (
 )
 from app.schemas.auth import UserOut
 from app.services.classification import fetch_classification_data
+from app.services.ingestion import process_csv_ingestion
 from app.db.session import get_db
 from app.core import utils
-from app.core.parser import parse_query
+from app.core.parser import parse_query, normalize_filters
+from app.core.cache import query_cache
 from app.core.dependencies import get_current_user, require_admin, require_analyst, require_api_version
 
 router = APIRouter()
@@ -99,6 +101,19 @@ async def get_profiles_with_filters(
     page: int = 1,
     limit: int = 10,
 ):
+    # ── Normalization & Caching ────────────────────────────────────────────────
+    filters_dict = {
+        "gender": gender, "country_id": country_id, "age_group": age_group,
+        "min_age": min_age, "max_age": max_age,
+        "min_gender_probability": min_gender_probability,
+        "min_country_probability": min_country_probability,
+        "sort_by": sort_by, "order": order, "page": page, "limit": limit
+    }
+    cache_key = normalize_filters(filters_dict)
+    cached = query_cache.get(cache_key)
+    if cached:
+        return cached
+
     query = await _build_filtered_query(
         db, gender, country_id, age_group, min_age, max_age,
         min_gender_probability, min_country_probability, sort_by, order,
@@ -113,7 +128,7 @@ async def get_profiles_with_filters(
     result = await db.execute(paginated)
     profiles = result.scalars().all()
 
-    return {
+    response_data = {
         "status": "success",
         "page": page,
         "limit": limit,
@@ -122,6 +137,10 @@ async def get_profiles_with_filters(
         "links": _build_links(request, page, limit, total_pages),
         "data": profiles,
     }
+    
+    # Save to cache
+    query_cache.set(cache_key, response_data)
+    return response_data
 
 
 # ── POST /api/profiles  (admin only) ──────────────────────────────────────────
@@ -162,7 +181,32 @@ async def create_profile(
     await db.commit()
     await db.refresh(new_profile)
 
+    # Invalidate cache on new profile
+    query_cache.clear()
+
     return {"status": "success", "data": new_profile}
+
+
+# ── POST /api/profiles/upload  (admin only) ──────────────────────────────────
+
+@router.post(
+    "/profiles/upload",
+    status_code=200,
+    dependencies=[Depends(require_api_version)],
+)
+async def upload_profiles_csv(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_admin),
+):
+    """Bulk ingestion of profiles via CSV."""
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are supported")
+    
+    result = await process_csv_ingestion(file, db)
+    # Invalidate cache after bulk update
+    query_cache.clear()
+    return result
 
 
 # ── GET /api/profiles/export ───────────────────────────────────────────────────
@@ -328,6 +372,10 @@ async def delete_profile(
 
     await db.delete(profile)
     await db.commit()
+    
+    # Invalidate cache on delete
+    query_cache.clear()
+    
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

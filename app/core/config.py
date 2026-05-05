@@ -8,7 +8,7 @@ load_dotenv()
 class Settings(BaseSettings):
     PROJECT_NAME: str = "Insighta Labs+ API"
     VERSION: str = "3.0.0"
-    API_V1_STR: str = "/api"
+    API_V1_STR: str = "/api/v1"
 
     @property
     def DATABASE_URL(self) -> str:
@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     FRONTEND_URL: str = os.getenv("FRONTEND_URL", "http://localhost:3000")
 
     # Rate limits
-    AUTH_RATE_LIMIT: int = 100    # requests per minute for /auth/*
+    AUTH_RATE_LIMIT: int = 10     # requests per minute for /auth/* (Required for Stage 3)
     API_RATE_LIMIT: int = 500     # requests per minute for everything else
 
 settings = Settings()

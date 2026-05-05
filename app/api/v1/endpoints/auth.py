@@ -229,7 +229,7 @@ async def github_web_callback(
 
     response = RedirectResponse(url=f"{settings.FRONTEND_URL}/dashboard", status_code=302)
     response.set_cookie(
-        "insighta_access",
+        "access_token",
         access_token,
         httponly=True,
         samesite="lax",
@@ -238,7 +238,7 @@ async def github_web_callback(
         path="/",
     )
     response.set_cookie(
-        "insighta_refresh",
+        "refresh_token",
         refresh_token,
         httponly=True,
         samesite="lax",
@@ -286,9 +286,10 @@ async def github_cli_callback(
 
     return JSONResponse(
         content={
-            "status": "success",
             "access_token": access_token,
             "refresh_token": refresh_token,
+            "token_type": "Bearer",
+            "expires_in": 180,
             "username": user.username,
             "role": user.role,
         },
@@ -299,7 +300,7 @@ async def github_cli_callback(
 @router.post("/refresh", response_model=TokenResponse)
 async def refresh_tokens(
     body: RefreshRequest,
-    insighta_refresh: Optional[str] = Cookie(None),
+    refresh_token: Optional[str] = Cookie(None),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -309,7 +310,7 @@ async def refresh_tokens(
       - HTTP-only cookie  (web portal)
     The old refresh token is immediately revoked (rotation).
     """
-    raw_token = body.refresh_token or insighta_refresh
+    raw_token = body.refresh_token or refresh_token
     if not raw_token:
         raise HTTPException(status_code=401, detail="Refresh token required")
 
@@ -338,29 +339,31 @@ async def refresh_tokens(
     new_refresh = await _store_refresh_token(db, user.id)
 
     return TokenResponse(
-        status="success",
         access_token=new_access,
         refresh_token=new_refresh,
+        token_type="Bearer",
+        expires_in=180,
+        role=user.role,
     )
 
 
 @router.post("/logout")
 async def logout(
     body: RefreshRequest,
-    insighta_refresh: Optional[str] = Cookie(None),
+    refresh_token: Optional[str] = Cookie(None),
     db: AsyncSession = Depends(get_db),
 ):
     """
     Invalidate the refresh token server-side.
     Clears the HTTP-only cookie for web portal sessions.
     """
-    raw_token = body.refresh_token or insighta_refresh
+    raw_token = body.refresh_token or refresh_token
     if raw_token:
         await _revoke_refresh_token(db, raw_token)
 
     response = JSONResponse(content={"status": "success", "message": "Logged out"})
-    response.delete_cookie("insighta_access")
-    response.delete_cookie("insighta_refresh")
+    response.delete_cookie("access_token")
+    response.delete_cookie("refresh_token")
     return response
 
 

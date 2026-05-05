@@ -18,9 +18,11 @@ class RefreshRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    status: str = "success"
     access_token: str
     refresh_token: str
+    token_type: str = "Bearer"
+    expires_in: int = 180
+    role: Optional[str] = None
 
 
 class UserOut(BaseModel):
