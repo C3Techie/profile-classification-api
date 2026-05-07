@@ -60,7 +60,6 @@ pytest.ini
 venv/
 .venv/
 env/
-.env
 ENV/
 env.bak/
 venv.bak/
@@ -69,9 +68,14 @@ venv.bak/
 *.db
 
 # IDEs
-.vscode/
 .idea/
 
 # OS misc
 .DS_Store
 Thumbs.db
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
+config.bat
+node_modules

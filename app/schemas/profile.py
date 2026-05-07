@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_serializer
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from datetime import datetime
 
 
@@ -52,3 +52,11 @@ class ProfileListResponse(BaseModel):
 class ErrorResponse(BaseModel):
     status: str = "error"
     message: str
+
+
+class ProfileStatsResponse(BaseModel):
+    status: str = "success"
+    total_profiles: int
+    by_gender: Dict[str, int]
+    by_age_group: Dict[str, int]
+    top_countries: List[Dict[str, Any]]
