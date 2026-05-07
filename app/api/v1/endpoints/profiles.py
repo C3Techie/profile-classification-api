@@ -17,6 +17,7 @@ from app.schemas.profile import (
     ProfileListResponse,
     ProfileData,
     PaginationLinks,
+    ProfileStatsResponse,
 )
 from app.schemas.auth import UserOut
 from app.services.classification import fetch_classification_data
@@ -263,6 +264,63 @@ async def export_profiles(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# ── GET /api/profiles/stats ───────────────────────────────────────────────────
+
+@router.get(
+    "/profiles/stats",
+    response_model=ProfileStatsResponse,
+    dependencies=[Depends(require_api_version)],
+)
+async def get_profile_stats(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_analyst),
+):
+    """Get aggregated profile statistics (Total, Gender, Age Group, Countries)."""
+    # Check cache
+    cache_key = "profile_stats"
+    cached = query_cache.get(cache_key)
+    if cached:
+        return cached
+
+    # 1. Total
+    total_stmt = select(func.count(Profile.id))
+    total_res = await db.execute(total_stmt)
+    total = total_res.scalar() or 0
+
+    # 2. By Gender
+    gender_stmt = select(Profile.gender, func.count(Profile.id)).group_by(Profile.gender)
+    gender_res = await db.execute(gender_stmt)
+    by_gender = {row[0]: row[1] for row in gender_res.all()}
+
+    # 3. By Age Group
+    age_stmt = select(Profile.age_group, func.count(Profile.id)).group_by(Profile.age_group)
+    age_res = await db.execute(age_stmt)
+    by_age_group = {row[0]: row[1] for row in age_res.all()}
+
+    # 4. Top Countries
+    country_stmt = select(Profile.country_name, Profile.country_id, func.count(Profile.id))\
+        .group_by(Profile.country_name, Profile.country_id)\
+        .order_by(desc(func.count(Profile.id)))\
+        .limit(10)
+    country_res = await db.execute(country_stmt)
+    top_countries = [
+        {"country_name": row[0], "country_id": row[1], "count": row[2]}
+        for row in country_res.all()
+    ]
+
+    response_data = {
+        "status": "success",
+        "total_profiles": total,
+        "by_gender": by_gender,
+        "by_age_group": by_age_group,
+        "top_countries": top_countries
+    }
+
+    # Save to cache for 10 minutes (600s)
+    query_cache.set(cache_key, response_data, ttl=600)
+    return response_data
 
 
 # ── GET /api/profiles/search ──────────────────────────────────────────────────
